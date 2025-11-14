@@ -1,33 +1,59 @@
-﻿namespace FileSorter;
+﻿using System.IO.Pipes;
+using System.Text.Json;
+
+namespace FileSorter;
 
 static class Program
 {
     static void Main(string[] args)
     {
-        var logger = new Logger(Console.OpenStandardOutput(), true);
-        //var logger =
-            //new Logger(new FileStream(Path.Combine(Directory.GetCurrentDirectory(), "logFile.log"), FileMode.Append),
-               // true);
-        string filesToSort;
-        string sortedFiles;
-        if (args.Length < 2)
+        ConfigLoader? configLoader;
+        if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "config.json")))
         {
-            filesToSort = Path.Combine(Directory.GetCurrentDirectory(), "FilesToSort"); 
-            sortedFiles = Path.Combine(Directory.GetCurrentDirectory(), "SortedFiles");
-            logger.Info("Using default values");
-            logger.Info($"Unsorted Directory: {filesToSort}");
-            logger.Info($"Sorted Directory: {sortedFiles}");
-            //Console.WriteLine("If you wish to change these settings stop the program and provide the directories in the command line: ");
-            //Console.WriteLine($"{Environment.CommandLine} [Unsorted_directory] [Sorted_directory]");
-            //Console.WriteLine("There is no option to provide one without specifying the other");
+            Console.WriteLine("Using Default Config!");
+            configLoader = new ConfigLoader();
         }
         else
-        { 
-            filesToSort = args[0];
-            sortedFiles = args[1];
-            logger.Info($"Unsorted Directory: {filesToSort}");
-            logger.Info($"Sorted Directory: {sortedFiles}");
+        {
+            Console.WriteLine("Loading Config From File!");
+            var text = File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "config.json"));
+            var options = new JsonSerializerOptions()
+            {
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+                PropertyNameCaseInsensitive = true
+            };
+            configLoader = JsonSerializer.Deserialize<ConfigLoader>(text, options);
         }
+
+        if (configLoader == null)
+        {
+            throw new ArgumentNullException(nameof(configLoader), "is null");
+        }
+
+        Logger logger;
+        if (configLoader.Type == ConfigLoader.TypeOfLogging.Stdout)
+        {
+            logger = new Logger(Console.OpenStandardOutput(), configLoader.WriteDebug);
+        } else if (configLoader.Type == ConfigLoader.TypeOfLogging.Stderr)
+        {
+            logger = new Logger(Console.OpenStandardError(), configLoader.WriteDebug);
+        }
+        else
+        {
+            logger = new Logger(
+                new FileStream(Path.Combine(Directory.GetCurrentDirectory(), configLoader.LogFileName!),
+                    FileMode.Append), configLoader.WriteDebug);
+        }
+        logger.Info("Logger has been initialized");
+        if (configLoader.WriteDebug == true)
+        {
+            logger.Debug("Debug messages will be shown!");
+        }
+        string filesToSort = Path.Combine(Directory.GetCurrentDirectory(), configLoader.UnsortedDirectory);
+        string sortedFiles = Path.Combine(Directory.GetCurrentDirectory(), configLoader.OrderedDirectory);
+        logger.Info($"UnsortedDirectory: {filesToSort}");
+        logger.Info($"OrderedDirectory: {sortedFiles}");
         
         if (!Directory.Exists(filesToSort))
         {

@@ -1,0 +1,7 @@
+{
+    "unsortedDirectory": "FilesToSort",
+    "orderedDirectory": "SortedFiles",
+    "typeOfLogging" : 0,  // 0 - stdout, 1 - stderr, 2 - file
+    "logFileName" : null,  // Provide just the FILENAME here, not the full path, this is a required parameter, but when above line is 0 or 1 provide null here!
+    "writeDebug" : true   // Write Debug messages?
+}
